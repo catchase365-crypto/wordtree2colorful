@@ -257,8 +257,10 @@ function abortGeneration() {
 async function processSingleTopic(topic, index, key) {
     const wrapper = document.getElementById(`wrapper-${index}`);
     const stagingArea = document.getElementById('stagingArea');
+    let retryCount = 0;
 
-    try {
+    while (!isAborted) {
+        try {
         const prompt = `你是一个英语词汇专家。请围绕中文词汇"${topic}"，生成一套单词家族数据。
 要求：
 1. 提供10个精准的相关英文词（涵盖不同词性）。
@@ -310,9 +312,14 @@ async function processSingleTopic(topic, index, key) {
         wrapper.innerHTML = `<img src="${dataUrl}" class="result-img" alt="${cleanJson.theme}">`;
         cardDOM.remove();
 
-    } catch (e) {
-        console.error(`"${topic}" 生成失败:`, e);
-        wrapper.innerHTML = `<div class="status-text error-text">"${topic}"<br>生成失败，请重试</div>`;
+            return; // 成功生成后退出循环
+        } catch (e) {
+            if (isAborted) return;
+            retryCount++;
+            console.error(`"${topic}" 第 ${retryCount} 次尝试失败:`, e);
+            wrapper.innerHTML = `<div class="status-text error-text">"${topic}"<br>生成异常，重试中(${retryCount})</div>`;
+            await new Promise(resolve => setTimeout(resolve, 2000)); // 等待2秒后重试，避免频率限制
+        }
     }
 }
 

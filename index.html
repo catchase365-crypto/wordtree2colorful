@@ -177,6 +177,7 @@
     
     <div class="btn-group">
         <button id="generateBtn" onclick="startBatchGeneration()">生成精美卡片</button>
+        <button id="abortBtn" onclick="abortGeneration()" style="background: #dc3545; display: none;">强制停止生成</button>
         <button id="downloadBtn" onclick="downloadAllImages()">打包下载所有图片</button>
     </div>
 </div>
@@ -186,6 +187,7 @@
 
 <script>
 let generatedImagesData = [];
+let isAborted = false;
 
 const HighlighterColors = [
     '#a1f2c2', '#d4b8ff', '#fcf3a2', '#ffb3ba', '#bae1ff', 
@@ -204,6 +206,8 @@ function saveApiKey() {
 
 async function startBatchGeneration() {
     const key = document.getElementById('apiKey').value.trim();
+    isAborted = false;
+    document.getElementById('abortBtn').style.display = 'block';
     const rawTopic = document.getElementById('topicInput').value;
     const generateBtn = document.getElementById('generateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
@@ -235,8 +239,21 @@ async function startBatchGeneration() {
 
     generateBtn.disabled = false;
     generateBtn.innerText = '生成精美卡片';
+    document.getElementById('abortBtn').style.display = 'none';
     if (generatedImagesData.some(item => item !== null)) {
         downloadBtn.style.display = 'block';
+    }
+}
+
+function abortGeneration() {
+    if(confirm("确定要强制停止生成吗？已完成的卡片将保留。")) {
+        isAborted = true;
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('generateBtn').innerText = '生成精美卡片';
+        document.getElementById('abortBtn').style.display = 'none';
+        if (generatedImagesData.some(item => item !== null)) {
+            document.getElementById('downloadBtn').style.display = 'block';
+        }
     }
 }
 
@@ -272,6 +289,7 @@ async function processSingleTopic(topic, index, key) {
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
         
+        if (isAborted) return;
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
@@ -279,6 +297,7 @@ async function processSingleTopic(topic, index, key) {
         const rawText = data.candidates[0].content.parts[0].text;
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
         if(!jsonMatch) throw new Error("无法解析 JSON");
+        if (isAborted) return;
         const cleanJson = JSON.parse(jsonMatch[0]);
 
         const cardDOM = createBaseCardDOM(cleanJson);

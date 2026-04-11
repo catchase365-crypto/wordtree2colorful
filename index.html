@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>单词家族生成器 (完美排版修正版)</title>
+    <title>单词家族生成器 (终极防套娃修复版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -86,7 +86,7 @@
         .card-container {
             width: 500px; 
             height: 1083px; 
-            contain: content; /* 保留你添加的性能隔离属性 */
+            contain: content; 
             background-color: var(--bg-grid);
             background-image: linear-gradient(#e0eaff 1px, transparent 1px), linear-gradient(90deg, #e0eaff 1px, transparent 1px);
             background-size: 20px 20px;
@@ -112,14 +112,13 @@
             flex-shrink: 0;
         }
         
-        /* [核心修改 1]：初始字号与行高调整，专门为顶部段落拉大行高 */
         .en-paragraph { 
             font-weight: 500; 
             font-size: 17px; 
-            line-height: 2.5; /* 调大基础行高，防止上下遮挡 */
+            line-height: 2.5; 
             margin-bottom: 10px; 
             transition: all 0.2s;
-            text-align: justify; /* 两端对齐更美观 */
+            text-align: justify; 
         }
         .zh-translation { font-size: 15px; color: #555; border-top: 1px dashed #ccc; padding-top: 10px; line-height: 1.5;}
         
@@ -156,23 +155,21 @@
             padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center;
         }
 
-        /* [核心修改 2]：顶部段落的荧光笔样式强化隔离 */
         .en-paragraph mark.hl {
-            display: inline-block; /* 核心：防止单词在行尾断裂 */
-            margin: 2px 4px;       /* 核心：增加左右安全距离，防止相邻粘连 */
-            line-height: 1.2;      /* 内部紧凑 */
+            display: inline-block; 
+            margin: 2px 4px;       
+            line-height: 1.2;      
         }
 
-        /* 底部列表等通用的高亮样式 */
         mark.hl { border-radius: 4px; padding: 2px 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); color: #111; }
     </style>
 </head>
 <body>
 
 <div class="config-panel">
-    <h3>📖单词家族批注卡片 (完美排版修正版)</h3>
+    <h3>📖单词家族批注卡片 (终极防套娃修复版)</h3>
     <input type="password" id="apiKey" placeholder="输入您的 Gemini API Key" oninput="saveApiKey()">
-    <span class="tips">已修复拥挤遮挡问题，强制精准匹配单词！</span>
+    <span class="tips">采用单次扫描匹配算法，彻底杜绝 HTML 代码错乱Bug！</span>
     <textarea id="topicInput" placeholder="例如: 污染物; 森林; 繁荣"></textarea>
     
     <div class="btn-group">
@@ -262,13 +259,12 @@ async function processSingleTopic(topic, index, key) {
     const stagingArea = document.getElementById('stagingArea');
 
     try {
-        // [核心修改 3]：强化 AI Prompt，严格禁止高亮词组，强制只高亮独立单词
         const prompt = `你是一个英语词汇专家。请围绕中文词汇"${topic}"，生成一套单词家族数据。
 要求：
 1. 提供10个精准的相关英文词（涵盖不同词性）。
 2. 每个单词的中文解释必须【极简】，控制在 4-8 个字以内。
 3. 创作一段连贯的英文段落（40-60词），巧妙包含这10个单词。
-4. 【极其重要的排版指令】：必须用方括号仅将段落中的这10个【独立单词本身】括起来！绝对禁止将包含修饰语的词组或短语括起来！(例如：如果列表中的单词是 logic，只能写 [logic]，绝不能写 [rational logic] 或 [logic questions])。
+4. 【极其重要的排版指令】：不要在英文段落中使用任何方括号！返回一段没有特殊格式的纯文本段落。
 5. 提供准确的中文翻译。
 
 严格按照以下JSON格式返回：
@@ -331,20 +327,30 @@ function createBaseCardDOM(data) {
 
     const topSec = document.createElement('div');
     topSec.className = 'top-section';
-    let highlightedEn = data.paragraph_en.replace(/\[(.*?)\]/g, (match, wordInside) => {
-        let matchedColor = '#e2e2e2'; 
-        for(let i=0; i<data.words.length; i++) {
-            const root = data.words[i].word.toLowerCase();
-            const current = wordInside.toLowerCase();
-            if (current.includes(root) || root.includes(current)) {
-                matchedColor = HighlighterColors[i % HighlighterColors.length];
-                break;
-            }
+
+    // [核心大修]：单次扫描正则替换引擎
+    // 1. 保留原始索引并按长度降序排序（防止"train"优先匹配导致"training"被截断）
+    const sortedWords = data.words.map((w, index) => ({...w, originalIndex: index}))
+                                  .sort((a, b) => b.word.length - a.word.length);
+    
+    // 2. 将10个单词拼接成一个巨大的正在表达式: \b(word1|word2|word3)\b
+    const escapedWords = sortedWords.map(w => w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const combinedRegex = new RegExp(`\\b(${escapedWords.join('|')})\\b`, 'gi');
+
+    // 3. 一次性走完整个段落进行替换。匹配到谁就换谁，绝对不会回头去匹配已经生成的 <mark> 标签内部！
+    const currentHighlightedEn = data.paragraph_en.replace(combinedRegex, (match) => {
+        const lowerMatch = match.toLowerCase();
+        // 找到具体是哪个单词被匹配到了，以便取对应颜色
+        const foundWord = sortedWords.find(w => lowerMatch === w.word.toLowerCase());
+        if (foundWord) {
+            const color = HighlighterColors[foundWord.originalIndex % HighlighterColors.length];
+            return `<mark class="hl" style="background-color: ${color};">${match}</mark>`;
         }
-        return `<mark class="hl" style="background-color: ${matchedColor};">${wordInside}</mark>`;
+        return match;
     });
+
     topSec.innerHTML = `
-        <div class="en-paragraph">${highlightedEn}</div>
+        <div class="en-paragraph">${currentHighlightedEn}</div>
         <div class="zh-translation">翻译：${data.paragraph_zh}</div>
     `;
     card.appendChild(topSec);
@@ -372,7 +378,7 @@ async function applyAutoFitLogic(cardDOM) {
     let fontEn = 17;
     let fontZh = 15;
     let fontDef = 14;
-    let lhEn = 2.5; /* [核心修改 4] 匹配起始的宽松行高 */
+    let lhEn = 2.5; 
 
     const enPara = cardDOM.querySelector('.en-paragraph');
     const zhPara = cardDOM.querySelector('.zh-translation');
@@ -383,7 +389,6 @@ async function applyAutoFitLogic(cardDOM) {
         fontZh -= 0.5;
         fontDef -= 0.5;
         
-        /* [核心修改 5] 设置自适应缩小时的行高“底线”，绝不允许小于 2.0，防止为了缩放又挤在一起 */
         if (lhEn > 2.0) {
             lhEn -= 0.05;
         }

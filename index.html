@@ -384,8 +384,8 @@ function createBaseCardDOM(data) {
 
 async function applyAutoFitLogic(cardDOM) {
     // 提高初始字号以填充上方空间，缩小中下间距
-    let fontEn = 23; 
-    let fontZh = 18;
+    let fontEn = 25; 
+    let fontZh = 20;
     let fontDef = 16;
     let lhEn = 2.2; 
 
@@ -393,6 +393,7 @@ async function applyAutoFitLogic(cardDOM) {
     const zhPara = cardDOM.querySelector('.zh-translation');
     const botSec = cardDOM.querySelector('.bottom-section');
 
+    // [注释：卡片上中下的上部分中英文段翻译]
     // 初始应用较大字号
     enPara.style.fontSize = `${fontEn}px`;
     enPara.style.lineHeight = `${lhEn}`;

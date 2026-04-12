@@ -144,10 +144,11 @@
         .line { position: absolute; height: 2px; transform-origin: left center; z-index: 5; }
 
         .bottom-section {
-            background: rgba(255, 255, 255, 0.85); padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.85); padding: 20px;
             border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);
             border: 1px solid rgba(176, 196, 222, 0.5); flex-shrink: 0;
-            display: flex; flex-wrap: wrap; gap: 8px 12px; align-content: flex-start;
+            display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start;
+            min-height: 150px;
         }
         
         .def-item {
@@ -391,21 +392,27 @@ async function applyAutoFitLogic(cardDOM) {
     const zhPara = cardDOM.querySelector('.zh-translation');
     const botSec = cardDOM.querySelector('.bottom-section');
 
+    // 初始放大字体
+    fontEn = 19; fontZh = 17; fontDef = 16;
+    enPara.style.fontSize = `${fontEn}px`;
+    zhPara.style.fontSize = `${fontZh}px`;
+    botSec.querySelectorAll('.def-item').forEach(el => el.style.fontSize = `${fontDef}px`);
+
     while (cardDOM.scrollHeight > 1083 && fontEn > 12) {
         fontEn -= 0.5;
         fontZh -= 0.5;
         fontDef -= 0.5;
         
-        if (lhEn > 2.0) {
-            lhEn -= 0.05;
-        }
+        if (lhEn > 1.8) lhEn -= 0.05;
 
         enPara.style.fontSize = `${fontEn}px`;
         enPara.style.lineHeight = `${lhEn}`;
         zhPara.style.fontSize = `${fontZh}px`;
         
         const defItems = botSec.querySelectorAll('.def-item');
-        defItems.forEach(el => el.style.fontSize = `${fontDef}px`);
+        defItems.forEach(el => {
+            el.style.fontSize = `${Math.max(12, fontDef)}px`;
+        });
     }
 }
 

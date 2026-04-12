@@ -292,16 +292,17 @@ async function processSingleTopic(topic, index, key) {
 1. 提供10个精准的相关英文词（涵盖不同词性）。
 2. 每个单词的中文解释必须【极简】，控制在 4-8 个字以内。
 3. 创作一段连贯的英文段落（40-60词），巧妙包含这10个单词。
-4. 【极其重要的排版指令】：不要在英文段落中使用任何方括号！返回一段没有特殊格式的纯文本段落。
-5. 提供准确的中文翻译。
+4. 为每个单词提供国际音标（IPA）。
+5. 【极其重要的排版指令】：不要在英文段落中使用任何方括号！返回一段没有特殊格式的纯文本段落。
+6. 提供准确的中文翻译。
 
 严格按照以下JSON格式返回：
 {
   "theme": "${topic}",
   "pos": "n/v/adj",
   "words": [
-    {"word": "word1", "definition": "解释1"},
-    {"word": "word2", "definition": "解释2"}
+    {"word": "word1", "phonetic": "/ipa1/", "definition": "解释1"},
+    {"word": "word2", "phonetic": "/ipa2/", "definition": "解释2"}
   ],
   "paragraph_en": "英文段落...",
   "paragraph_zh": "中文翻译..."
@@ -399,8 +400,9 @@ function createBaseCardDOM(data) {
     let defHTML = '';
     data.words.forEach((item, i) => {
         const color = HighlighterColors[i % HighlighterColors.length];
-        defHTML += `<div class="def-item">
-            <mark class="hl" style="background-color: ${color}; font-weight: 600; margin-right: 6px;">${item.word}</mark> ${item.definition}
+        defHTML += `<div class="def-item" style="flex-direction: column; align-items: flex-start;">
+            <div style="margin-bottom: 2px;"><mark class="hl" style="background-color: ${color}; font-weight: 600; margin-right: 6px;">${item.word}</mark><span style="font-size: 12px; color: #888;">${item.phonetic || ''}</span></div>
+            <div style="color: #444;">${item.definition}</div>
         </div>`;
     });
     botSec.innerHTML = defHTML;

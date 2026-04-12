@@ -120,7 +120,7 @@
             transition: all 0.2s;
             text-align: justify; 
         }
-        .zh-translation { font-size: 15px; color: #555; border-top: 1px dashed #ccc; padding-top: 10px; line-height: 1.5;}
+        .zh-translation { font-size: 15px; color: #555; border-top: 1px dashed #ccc; padding-top: 15px; margin-top: 5px; line-height: 1.6;}
         
         .middle-tree {
             flex-grow: 1; position: relative;
@@ -383,27 +383,29 @@ function createBaseCardDOM(data) {
 }
 
 async function applyAutoFitLogic(cardDOM) {
-    let fontEn = 17;
-    let fontZh = 15;
-    let fontDef = 14;
-    let lhEn = 2.5; 
+    // 提高初始字号以填充上方空间，缩小中下间距
+    let fontEn = 23; 
+    let fontZh = 18;
+    let fontDef = 16;
+    let lhEn = 2.2; 
 
     const enPara = cardDOM.querySelector('.en-paragraph');
     const zhPara = cardDOM.querySelector('.zh-translation');
     const botSec = cardDOM.querySelector('.bottom-section');
 
-    // 初始放大字体
-    fontEn = 19; fontZh = 17; fontDef = 16;
+    // 初始应用较大字号
     enPara.style.fontSize = `${fontEn}px`;
+    enPara.style.lineHeight = `${lhEn}`;
     zhPara.style.fontSize = `${fontZh}px`;
     botSec.querySelectorAll('.def-item').forEach(el => el.style.fontSize = `${fontDef}px`);
 
-    while (cardDOM.scrollHeight > 1083 && fontEn > 12) {
-        fontEn -= 0.5;
-        fontZh -= 0.5;
-        fontDef -= 0.5;
+    // 动态检测：如果总高度超过卡片高度，则逐步缩小字号
+    while (cardDOM.scrollHeight > 1070 && fontEn > 14) {
+        fontEn -= 0.4;
+        fontZh -= 0.3;
+        fontDef -= 0.2;
         
-        if (lhEn > 1.8) lhEn -= 0.05;
+        if (lhEn > 1.6) lhEn -= 0.03;
 
         enPara.style.fontSize = `${fontEn}px`;
         enPara.style.lineHeight = `${lhEn}`;

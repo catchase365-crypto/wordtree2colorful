@@ -82,14 +82,26 @@
 
         /* ------------------ 渲染区样式 ------------------ */
         #stagingArea { position: absolute; top: -9999px; left: -9999px; opacity: 0; pointer-events: none; }
+        
+        .theme-modern { --card-bg: #f4f8ff; --text-color: #333; --border-color: #b0c4de; --accent: #4e73df; --bg-img: linear-gradient(#e0eaff 1px, transparent 1px), linear-gradient(90deg, #e0eaff 1px, transparent 1px); }
+        .theme-academia { --card-bg: #1a1e26; --text-color: #d4af37; --border-color: #3e4451; --accent: #d4af37; --bg-img: radial-gradient(circle at 2px 2px, rgba(212,175,55,0.05) 1px, transparent 0); }
+        .theme-botanical { --card-bg: #fcfdfa; --text-color: #2d5a27; --border-color: #e2e8e0; --accent: #2e7d32; --bg-img: linear-gradient(135deg, #f5f7f2 25%, transparent 25%), linear-gradient(225deg, #f5f7f2 25%, transparent 25%); }
+        .theme-zen { --card-bg: #f9f7f2; --text-color: #4a4a4a; --border-color: #dcd7c9; --accent: #8b8378; --bg-img: none; }
+        .theme-nordic { --card-bg: #eceff4; --text-color: #2e3440; --border-color: #d8dee9; --accent: #5e81ac; --bg-img: linear-gradient(transparent 19px, #d8dee9 20px); }
+        .theme-royal { --card-bg: #2d0a31; --text-color: #e0b0ff; --border-color: #4a154b; --accent: #ff00ff; --bg-img: repeating-linear-gradient(45deg, rgba(74,21,75,0.1) 0px, rgba(74,21,75,0.1) 2px, transparent 2px, transparent 10px); }
+        .theme-coffee { --card-bg: #f3ece0; --text-color: #5d4037; --border-color: #d7ccc8; --accent: #8d6e63; --bg-img: radial-gradient(#d7ccc8 1px, transparent 0); }
+        .theme-swiss { --card-bg: #ffffff; --text-color: #1d3557; --border-color: #e63946; --accent: #e63946; --bg-img: linear-gradient(90deg, #f1faee 1px, transparent 1px); }
+        .theme-dream { --card-bg: #ffffff; --text-color: #4a148c; --border-color: #ce93d8; --accent: #9c27b0; --bg-img: linear-gradient(180deg, #f3e5f5 0%, #ffffff 100%); }
+        .theme-industrial { --card-bg: #2b2b2b; --text-color: #ffffff; --border-color: #444; --accent: #ffb400; --bg-img: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px); }
 
         .card-container {
             width: 500px; 
             height: 1083px; 
             contain: content; 
-            background-color: var(--bg-grid);
-            background-image: linear-gradient(#e0eaff 1px, transparent 1px), linear-gradient(90deg, #e0eaff 1px, transparent 1px);
-            background-size: 20px 20px;
+            transition: all 0.5s ease;
+            background-color: var(--card-bg, #f4f8ff);
+            background-image: var(--bg-img);
+            background-size: 40px 40px;
             box-sizing: border-box;
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
             display: flex; flex-direction: column;
@@ -101,7 +113,7 @@
             background: white; border: 2px solid #b0c4de;
             width: 80%; margin: 0 auto 20px auto; text-align: center;
             padding: 12px; font-size: 24px; font-weight: bold;
-            color: var(--primary-color); border-radius: 4px;
+            color: var(--accent, var(--primary-color)); border-radius: 4px; border-color: var(--border-color);
             box-shadow: 2px 2px 0px #b0c4de; flex-shrink: 0;
         }
 
@@ -171,6 +183,18 @@
     <h3>📖单词家族批注卡片 (终极防套娃修复版)</h3>
     <input type="password" id="apiKey" placeholder="输入您的 Gemini API Key" oninput="saveApiKey()">
     <span class="tips">采用单次扫描匹配算法，彻底杜绝 HTML 代码错乱Bug！</span>
+    <select id="themeSelect" onchange="updateAllCardsTheme()" style="width:100%; padding:10px; margin-bottom:10px; background:rgba(0,0,0,0.2); color:white; border-radius:8px; border:1px solid rgba(255,255,255,0.2);">
+        <option value="modern">✨ 现代简约 (Modern)</option>
+        <option value="academia">📜 深夜学院 (Academia)</option>
+        <option value="botanical">🌿 植物图鉴 (Botanical)</option>
+        <option value="zen">🍵 枯山淡墨 (Zen)</option>
+        <option value="nordic">❄️ 北欧极简 (Nordic)</option>
+        <option value="royal">👑 宫廷典雅 (Royal)</option>
+        <option value="coffee">☕ 咖啡手账 (Coffee)</option>
+        <option value="swiss">📐 包豪斯红 (Swiss)</option>
+        <option value="dream">🦄 幻梦云端 (Dream)</option>
+        <option value="industrial">🏗️ 工业废墟 (Industrial)</option>
+    </select>
     <textarea id="topicInput" placeholder="例如: 污染物; 森林; 繁荣"></textarea>
     
     <div class="btn-group">
@@ -185,6 +209,7 @@
 
 <script>
 let generatedImagesData = [];
+let rawResultsData = [];
 let isAborted = false;
 
 const HighlighterColors = [
@@ -310,6 +335,7 @@ async function processSingleTopic(topic, index, key) {
         const dataUrl = canvas.toDataURL('image/png');
 
         generatedImagesData[index] = { theme: cleanJson.theme, dataUrl: dataUrl };
+        rawResultsData[index] = cleanJson;
         wrapper.innerHTML = `<img src="${dataUrl}" class="result-img" alt="${cleanJson.theme}">`;
         cardDOM.remove();
 
@@ -326,7 +352,8 @@ async function processSingleTopic(topic, index, key) {
 
 function createBaseCardDOM(data) {
     const card = document.createElement('div');
-    card.className = 'card-container';
+    const theme = document.getElementById('themeSelect').value;
+    card.className = `card-container theme-${theme}`;
 
     const header = document.createElement('div');
     header.className = 'header-box';
@@ -472,6 +499,26 @@ function drawDynamicTree(cardDOM, data) {
         line.style.transform = `rotate(${angleDeg}deg) translate(35px, 0)`; 
         midSec.appendChild(line);
     });
+}
+
+async function updateAllCardsTheme() {
+    const stagingArea = document.getElementById('stagingArea');
+    const resultsGrid = document.getElementById('resultsGrid');
+    const theme = document.getElementById('themeSelect').value;
+
+    for (let i = 0; i < rawResultsData.length; i++) {
+        if (!rawResultsData[i]) continue;
+        const wrapper = document.getElementById(`wrapper-${i}`);
+        const cardDOM = createBaseCardDOM(rawResultsData[i]);
+        stagingArea.appendChild(cardDOM);
+        await applyAutoFitLogic(cardDOM);
+        drawDynamicTree(cardDOM, rawResultsData[i]);
+        const canvas = await html2canvas(cardDOM, { scale: 2, backgroundColor: null });
+        const dataUrl = canvas.toDataURL('image/png');
+        generatedImagesData[i].dataUrl = dataUrl;
+        wrapper.innerHTML = `<img src="${dataUrl}" class="result-img" alt="${rawResultsData[i].theme}">`;
+        cardDOM.remove();
+    }
 }
 
 async function downloadAllImages() {

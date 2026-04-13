@@ -105,21 +105,21 @@
             box-sizing: border-box;
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
             display: flex; flex-direction: column;
-            padding: 30px; color: #333;
+            padding: 10px 25px 20px 25px; color: #333;
             overflow: hidden; 
         }
 
         .header-box {
             background: white; border: 2px solid #b0c4de;
-            width: 80%; margin: 0 auto 20px auto; text-align: center;
-            padding: 12px; font-size: 24px; font-weight: bold;
+            width: 75%; margin: 0 auto 10px auto; text-align: center;
+            padding: 6px; font-size: 20px; font-weight: bold;
             color: var(--accent, var(--primary-color)); border-radius: 4px; border-color: var(--border-color);
             box-shadow: 2px 2px 0px #b0c4de; flex-shrink: 0;
         }
 
         .top-section {
-            background: rgba(255, 255, 255, 0.7); padding: 15px 20px;
-            border-radius: 12px; margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.7); padding: 12px 20px;
+            border-radius: 12px; margin-bottom: 12px; margin-top: 52px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid rgba(176, 196, 222, 0.3);
             flex-shrink: 0;
         }
@@ -136,8 +136,8 @@
         
         .middle-tree {
             flex-grow: 1; position: relative;
-            min-height: 320px; 
-            width: 100%; margin-bottom: 20px;
+            min-height: 280px; 
+            width: 100%; margin-bottom: 10px;
         }
         
         .center-word {
@@ -355,11 +355,6 @@ function createBaseCardDOM(data) {
     const card = document.createElement('div');
     const theme = document.getElementById('themeSelect').value;
     card.className = `card-container theme-${theme}`;
-
-    const header = document.createElement('div');
-    header.className = 'header-box';
-    header.innerText = `单词家族 “${data.theme}”`;
-    card.appendChild(header);
 
     const topSec = document.createElement('div');
     topSec.className = 'top-section';

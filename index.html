@@ -202,6 +202,20 @@
             font-size: 35px; cursor: pointer; z-index: 2100; width: 40px; height: 40px; text-align: center; line-height: 40px;
         }
         .lightbox-counter { position: absolute; top: 20px; left: 20px; color: white; font-size: 16px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; z-index: 2100; }
+
+        /* 分类导航栏样式 */
+        .category-tabs {
+            width: 100%; max-width: 1200px; margin: 0 auto 15px auto;
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+        }
+        .category-tab {
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer;
+            font-size: 14px; transition: all 0.2s;
+        }
+        .category-tab.active {
+            background: #4e73df; border-color: #4e73df; font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -234,6 +248,11 @@
     </select>
     <textarea id="topicInput" placeholder="例如: 污染物; 森林; 繁荣"></textarea>
     
+    <div style="margin: 10px 0; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 15px;">
+        <label style="color: #ccc; font-size: 13px; display: block; margin-bottom: 8px;">📂 导入本地 JSONL 数据：</label>
+        <input type="file" id="jsonlInput" accept=".jsonl" onchange="handleFileUpload(event)" style="padding: 6px; background: rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white; width: 100%; box-sizing: border-box;">
+    </div>
+    
     <div class="btn-group">
         <button id="generateBtn" onclick="startBatchGeneration()">生成精美卡片</button>
         <button id="abortBtn" onclick="abortGeneration()" style="background: #dc3545; display: none;">强制停止生成</button>
@@ -242,6 +261,7 @@
     </div>
 </div>
 
+<div id="categoryTabs" class="category-tabs"></div>
 <div id="resultsGrid" class="results-grid"></div>
 
 <div id="lightbox" class="lightbox" onclick="closeLightbox()">
@@ -268,8 +288,11 @@ let generatedImagesData = [];
 let rawResultsData = [];
 let generatedDOMs = [];
 let currentGalleryIndex = 0;
+let allImportedData = [];
+let currentCategory = 'All';
 let touchStartX = 0;
 let isAborted = false;
+let currentRenderId = 0;
 
 function speakTTS(text, event) {
     if(event) event.stopPropagation();
@@ -298,6 +321,7 @@ function saveApiKey() {
 async function startBatchGeneration() {
     const key = document.getElementById('apiKey').value.trim();
     isAborted = false;
+    currentRenderId++;
     document.getElementById('abortBtn').style.display = 'block';
     const rawTopic = document.getElementById('topicInput').value;
     const generateBtn = document.getElementById('generateBtn');
@@ -580,12 +604,139 @@ function drawDynamicTree(cardDOM, data) {
     });
 }
 
+async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(line => line.trim());
+        allImportedData = [];
+        const categories = new Set();
+        
+        lines.forEach(line => {
+            try {
+                const parsed = JSON.parse(line);
+                const mapped = {
+                    c: parsed.c || '未分类',
+                    theme: parsed.t,
+                    pos: parsed.pos || '',
+                    ui: parsed.ui || 'modern',
+                    words: parsed.w.map(word => ({
+                        word: word.n,
+                        phonetic: word.p,
+                        definition: word.d
+                    })),
+                    paragraph_en: parsed.en,
+                    paragraph_zh: parsed.zh
+                };
+                allImportedData.push(mapped);
+                categories.add(mapped.c);
+            } catch (err) {
+                console.error('JSON 解析失败，行内容:', line, err);
+            }
+        });
+        
+        renderCategoryTabs(Array.from(categories));
+        await renderCategory('All');
+    };
+    reader.readAsText(file);
+}
+
+function renderCategoryTabs(categories) {
+    const tabsContainer = document.getElementById('categoryTabs');
+    tabsContainer.innerHTML = '';
+    
+    const allTab = document.createElement('div');
+    allTab.className = 'category-tab active';
+    allTab.innerText = '全部';
+    allTab.onclick = () => { setActiveTab(allTab); renderCategory('All'); };
+    tabsContainer.appendChild(allTab);
+    
+    categories.forEach(cat => {
+        const tab = document.createElement('div');
+        tab.className = 'category-tab';
+        tab.innerText = cat;
+        tab.onclick = () => { setActiveTab(tab); renderCategory(cat); };
+        tabsContainer.appendChild(tab);
+    });
+}
+
+function setActiveTab(clickedTab) {
+    document.querySelectorAll('.category-tab').forEach(tab => tab.classList.remove('active'));
+    clickedTab.classList.add('active');
+}
+
+async function renderCategory(category) {
+    const localRenderId = ++currentRenderId;
+    currentCategory = category;
+    const resultsGrid = document.getElementById('resultsGrid');
+    const stagingArea = document.getElementById('stagingArea');
+    resultsGrid.innerHTML = '';
+    stagingArea.innerHTML = '';
+    
+    const filteredData = category === 'All' ? allImportedData : allImportedData.filter(d => d.c === category);
+    
+    rawResultsData = [];
+    generatedImagesData = [];
+    generatedDOMs = [];
+    
+    for (let i = 0; i < filteredData.length; i++) {
+        if (localRenderId !== currentRenderId) return;
+        const data = filteredData[i];
+        rawResultsData[i] = data;
+        generatedDOMs[i] = null;
+        generatedImagesData[i] = null;
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'image-wrapper';
+        wrapper.id = `wrapper-${i}`;
+        wrapper.innerHTML = `<div class="status-text">正在渲染<br><b>${data.theme}</b>...</div>`;
+        resultsGrid.appendChild(wrapper);
+        
+        const themeSelect = document.getElementById('themeSelect');
+        const originalTheme = themeSelect.value;
+        if (data.ui) themeSelect.value = data.ui;
+        
+        try {
+            const cardDOM = createBaseCardDOM(data);
+            stagingArea.appendChild(cardDOM);
+            
+            await applyAutoFitLogic(cardDOM);
+            drawDynamicTree(cardDOM, data);
+            
+            generatedDOMs[i] = cardDOM.cloneNode(true);
+            
+            await new Promise(resolve => setTimeout(resolve, 100)); 
+            const canvas = await html2canvas(cardDOM, { scale: 2, backgroundColor: null });
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            generatedImagesData[i] = { theme: data.theme, dataUrl: dataUrl };
+            wrapper.innerHTML = `<img src="${dataUrl}" class="result-img" alt="${data.theme}">`;
+            wrapper.onclick = () => openLightbox(i);
+            cardDOM.remove();
+        } catch(err) {
+            console.error("渲染异常", data.theme, err);
+            wrapper.innerHTML = `<div class="status-text error-text">"${data.theme}"<br>渲染异常</div>`;
+        }
+        
+        themeSelect.value = originalTheme;
+    }
+    
+    if (generatedImagesData.some(item => item !== null)) {
+        document.getElementById('downloadBtn').style.display = 'block';
+        document.getElementById('downloadDataBtn').style.display = 'block';
+    }
+}
+
 async function updateAllCardsTheme() {
+    const localRenderId = ++currentRenderId;
     const stagingArea = document.getElementById('stagingArea');
     const resultsGrid = document.getElementById('resultsGrid');
     const theme = document.getElementById('themeSelect').value;
 
     for (let i = 0; i < rawResultsData.length; i++) {
+        if (localRenderId !== currentRenderId) return;
         if (!rawResultsData[i]) continue;
         const wrapper = document.getElementById(`wrapper-${i}`);
         const cardDOM = createBaseCardDOM(rawResultsData[i]);

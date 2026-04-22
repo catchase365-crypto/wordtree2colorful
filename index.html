@@ -63,6 +63,7 @@
         button:hover { background: #375abd; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         #downloadBtn { background: #28a745; display: none; }
+        #downloadDataBtn { background: #ff9800; display: none; }
 
         .results-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -234,6 +235,7 @@
         <button id="generateBtn" onclick="startBatchGeneration()">生成精美卡片</button>
         <button id="abortBtn" onclick="abortGeneration()" style="background: #dc3545; display: none;">强制停止生成</button>
         <button id="downloadBtn" onclick="downloadAllImages()">打包下载所有图片</button>
+        <button id="downloadDataBtn" onclick="downloadAllData()">下载轻量数据(JSONL)</button>
     </div>
 </div>
 
@@ -297,6 +299,7 @@ async function startBatchGeneration() {
     generateBtn.disabled = true;
     generateBtn.innerText = 'AI与排版引擎正在运算...';
     downloadBtn.style.display = 'none';
+    document.getElementById('downloadDataBtn').style.display = 'none';
     resultsGrid.innerHTML = ''; 
     stagingArea.innerHTML = '';
     generatedImagesData = new Array(topics.length).fill(null);
@@ -317,6 +320,7 @@ async function startBatchGeneration() {
     document.getElementById('abortBtn').style.display = 'none';
     if (generatedImagesData.some(item => item !== null)) {
         downloadBtn.style.display = 'block';
+        document.getElementById('downloadDataBtn').style.display = 'block';
     }
 }
 
@@ -328,6 +332,7 @@ function abortGeneration() {
         document.getElementById('abortBtn').style.display = 'none';
         if (generatedImagesData.some(item => item !== null)) {
             document.getElementById('downloadBtn').style.display = 'block';
+            document.getElementById('downloadDataBtn').style.display = 'block';
         }
     }
 }
@@ -626,6 +631,33 @@ lb.addEventListener('touchend', e => {
     if (touchStartX - touchEndX > 50) nextImage();
     if (touchEndX - touchStartX > 50) prevImage();
 }, false);
+
+function downloadAllData() {
+    const validData = rawResultsData.filter(item => item !== null);
+    if(validData.length === 0) return;
+
+    const uiTheme = document.getElementById('themeSelect').value;
+    
+    let jsonlContent = "";
+    validData.forEach(data => {
+        const compressed = {
+            t: data.theme,
+            pos: data.pos,
+            ui: uiTheme,
+            w: data.words.map(w => ({
+                n: w.word,
+                p: w.phonetic,
+                d: w.definition
+            })),
+            en: data.paragraph_en,
+            zh: data.paragraph_zh
+        };
+        jsonlContent += JSON.stringify(compressed) + "\n";
+    });
+
+    const blob = new Blob([jsonlContent], { type: "text/plain;charset=utf-8" });
+    saveAs(blob, "单词卡片纯文本数据.jsonl");
+}
 
 async function downloadAllImages() {
     const validImages = generatedImagesData.filter(item => item !== null);

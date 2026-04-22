@@ -25,7 +25,7 @@
             min-height: 100vh;
         }
 
-        .config-panel {
+        .top-bar { width: 100%; max-width: 600px; display: flex; justify-content: flex-start; gap: 10px; margin-bottom: 12px; } .icon-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; backdrop-filter: blur(5px); transition: all 0.2s; display: flex; align-items: center; gap: 5px; } .icon-btn:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.4); } .config-panel {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             padding: 20px;
@@ -71,6 +71,7 @@
         @media (max-width: 768px) { .results-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
 
         .image-wrapper {
+            cursor: pointer;
             background: white; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden;
             display: flex; align-items: center; justify-content: center;
@@ -175,9 +176,36 @@
         }
 
         mark.hl { border-radius: 4px; padding: 2px 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); color: #111; }
+        /* 预览相册样式 */
+        .lightbox {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 2000;
+            display: none; justify-content: center; align-items: center; touch-action: none;
+        }
+        .lightbox-img { max-height: 92vh; max-width: 95vw; border-radius: 8px; object-fit: contain; transition: transform 0.3s; }
+        .lightbox-nav {
+            position: absolute; top: 50%; width: 100%; display: flex;
+            justify-content: space-between; transform: translateY(-50%);
+            padding: 0 10px; box-sizing: border-box; pointer-events: none;
+        }
+        .lightbox-btn {
+            background: rgba(255,255,255,0.15); border: none; color: white;
+            width: 50px; height: 50px; cursor: pointer; border-radius: 50%;
+            font-size: 24px; pointer-events: auto; display: flex; align-items: center; justify-content: center;
+        }
+        .lightbox-close {
+            position: absolute; top: 20px; right: 20px; color: white;
+            font-size: 35px; cursor: pointer; z-index: 2100; width: 40px; height: 40px; text-align: center;
+        }
+        .lightbox-counter { position: absolute; bottom: 20px; color: white; font-size: 14px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; }
     </style>
 </head>
 <body>
+
+<div class="top-bar">
+    <button class="icon-btn" onclick="toggleFullScreen()">⛶ 全屏切换</button>
+    <!-- 此处可预留更多功能按钮 -->
+</div>
 
 <div class="config-panel">
     <h3>📖单词家族批注卡片 (终极防套娃修复版)</h3>
@@ -210,11 +238,33 @@
 </div>
 
 <div id="resultsGrid" class="results-grid"></div>
+
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close">&times;</span>
+    <div class="lightbox-nav">
+        <button class="lightbox-btn" onclick="prevImage(event)">❮</button>
+        <button class="lightbox-btn" onclick="nextImage(event)">❯</button>
+    </div>
+    <img id="lightboxImg" class="lightbox-img" src="" onclick="event.stopPropagation()">
+    <div id="lightboxCounter" class="lightbox-counter"></div>
+</div>
 <div id="stagingArea"></div>
 
 <script>
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.error(`无法开启全屏: ${err.message}`);
+        });
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+    }
+}
+
 let generatedImagesData = [];
 let rawResultsData = [];
+let currentGalleryIndex = 0;
+let touchStartX = 0;
 let isAborted = false;
 
 const HighlighterColors = [
@@ -344,6 +394,7 @@ async function processSingleTopic(topic, index, key) {
         generatedImagesData[index] = { theme: cleanJson.theme, dataUrl: dataUrl };
         rawResultsData[index] = cleanJson;
         wrapper.innerHTML = `<img src="${dataUrl}" class="result-img" alt="${cleanJson.theme}">`;
+        wrapper.onclick = () => openLightbox(index);
         cardDOM.remove();
 
             return; // 成功生成后退出循环
@@ -520,9 +571,64 @@ async function updateAllCardsTheme() {
         const dataUrl = canvas.toDataURL('image/png');
         generatedImagesData[i].dataUrl = dataUrl;
         wrapper.innerHTML = `<img src="${dataUrl}" class="result-img" alt="${rawResultsData[i].theme}">`;
+        wrapper.onclick = () => openLightbox(i);
         cardDOM.remove();
     }
 }
+
+// --- 相册功能函数 ---
+function openLightbox(index) {
+    const validData = generatedImagesData.filter(img => img !== null);
+    if (validData.length === 0) return;
+    
+    currentGalleryIndex = index;
+    updateLightboxContent();
+    document.getElementById('lightbox').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function updateLightboxContent() {
+    const imgData = generatedImagesData[currentGalleryIndex];
+    if (!imgData) return;
+    
+    const imgEl = document.getElementById('lightboxImg');
+    imgEl.src = imgData.dataUrl;
+    document.getElementById('lightboxCounter').innerText = `${currentGalleryIndex + 1} / ${generatedImagesData.length}`;
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function nextImage(e) {
+    if (e) e.stopPropagation();
+    currentGalleryIndex = (currentGalleryIndex + 1) % generatedImagesData.length;
+    updateLightboxContent();
+}
+
+function prevImage(e) {
+    if (e) e.stopPropagation();
+    currentGalleryIndex = (currentGalleryIndex - 1 + generatedImagesData.length) % generatedImagesData.length;
+    updateLightboxContent();
+}
+
+// 键盘与滑动监听
+window.addEventListener('keydown', (e) => {
+    if (document.getElementById('lightbox').style.display === 'flex') {
+        if (e.key === 'ArrowRight') nextImage();
+        if (e.key === 'ArrowLeft') prevImage();
+        if (e.key === 'Escape') closeLightbox();
+    }
+});
+
+const lb = document.getElementById('lightbox');
+lb.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, false);
+lb.addEventListener('touchend', e => {
+    let touchEndX = e.changedTouches[0].screenX;
+    if (touchStartX - touchEndX > 50) nextImage();
+    if (touchEndX - touchStartX > 50) prevImage();
+}, false);
 
 async function downloadAllImages() {
     const validImages = generatedImagesData.filter(item => item !== null);
